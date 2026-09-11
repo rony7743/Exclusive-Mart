@@ -19,16 +19,16 @@ const { protect, isAdmin } = require("../auth/authMiddleware");
 
 const router = express.Router();
 
-// OTP এবং রেজিস্ট্রেশন রাউট
+
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOTP);
 router.post("/verify-otp-and-register", verifyOTPAndRegister);
 
-// লগিন রাউট
+// auth route
 router.post("/login", loginUser);
 router.post("/google", googleLogin);
 
-// পাসওয়ার্ড রিসেট রাউট
+// reset password route
 router.post("/reset-password-send-otp", resetPasswordSendOTP);
 router.post("/reset-password-verify-otp", resetPasswordVerifyOTP);
 router.post("/reset-password", resetPassword);
@@ -36,12 +36,12 @@ router.post("/reset-password", resetPassword);
 
 //Change Password Route
 router.post("/change-password", protect, changePassword); 
-router.get("/me", protect, getMyProfile);
-router.patch("/me", protect, updateMyProfile);
 
 
 // Role Ckk Router
 router.get("/roleckk", protect, isAdminCkk);
 router.get("/check-token-valid-and-reset-local-storage", checkTokenValidAndResetLocalStorage);
+router.get("/me", protect, getMyProfile);
+router.patch("/me", protect, updateMyProfile);
 
 module.exports = router;

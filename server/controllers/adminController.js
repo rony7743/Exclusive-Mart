@@ -20,7 +20,7 @@ const makeAdminLimiter = rateLimit({
 exports.reqmakeadmin = [
   makeAdminLimiter,
   async (req, res) => {
-    try { // try-catch যুক্ত করা হয়েছে
+    try {
       const code = req.body.code;
       const userId = req.user._id;
       const AdminSecret = process.env.ADMIN_SECRET;
@@ -85,8 +85,36 @@ exports.reqmakeadmin = [
 
 exports.fetchUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: 'user' }).select('name email role createdAt updatedAt imgUrl');
-    res.status(200).json(users);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+
+    const filter = { role: 'user' };
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { name: regex },
+        { email: regex }
+      ];
+    }
+
+    const totalUsers = await User.countDocuments(filter);
+    const totalPages = Math.ceil(totalUsers / limit);
+    const skip = (page - 1) * limit;
+
+    const users = await User.find(filter)
+      .select('name email role createdAt updatedAt imgUrl')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      error: false,
+      users,
+      totalUsers,
+      totalPages,
+      currentPage: page
+    });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({
@@ -102,7 +130,7 @@ exports.fetchUsers = async (req, res) => {
 exports.fetchAllProducts = async (req, res) => {
   try{
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 20;
 
     const skip = (page - 1) * limit;
 
@@ -111,9 +139,9 @@ exports.fetchAllProducts = async (req, res) => {
 
 
 const products = await Product.find()
+  .sort({ createdAt: -1 })
   .skip(skip)
   .limit(limit)
-  .sort({ createdAt: -1 })
   .select('name price oldPrice description images discount category inStock createdAt');
 
 const reviews = await Review.find({ productId: { $in: products.map(p => p._id) } })
@@ -134,6 +162,7 @@ res.status(200).json({
   data: {
     products: productsWithReviews,
     totalPages,
+    totalProducts,
     currentPage: page
   }
 });
@@ -163,17 +192,15 @@ exports.fetchOrders = async (req, res) => {
     const ordersFromDB = await Order.find()
       .populate('userId', 'name email imgUrl')
       .populate({
-        path: 'product.productId', // Order স্কিমাতে product একটি অবজেক্ট এবং তার ভেতরে productId আছে
+        path: 'product.productId',
         select: 'name price oldPrice images discount category inStock createdAt'
       })
-      .populate('addressId') // addressId দিয়ে সম্পূর্ণ ঠিকানা populate করা হচ্ছে
+      .populate('addressId') 
       .sort({ createdAt: -1 })
-      .skip(skip) // কতগুলো ডকুমেন্ট স্কিপ করতে হবে
-      .limit(limit) // প্রতি পৃষ্ঠায় কতগুলো ডকুমেন্ট লোড করতে হবে
-      .lean(); // .lean() ব্যবহার করলে Mongoose ডকুমেন্ট অবজেক্টের পরিবর্তে সাধারণ JavaScript অবজেক্ট পাওয়া যায়, যা মডিফাই করা সহজ
-
+      .skip(skip) 
+      .limit(limit) 
+      .lean(); 
     const formattedOrders = ordersFromDB.map(order => {
-      // product.productId থেকে প্রোডাক্টের তথ্য অর্ডারের মূল লেভেলে আনা হচ্ছে
       const productDetails = order.product && order.product.productId ? {
         productName: order.product.productId.name,
         productPrice: order.product.productId.price,
@@ -182,13 +209,13 @@ exports.fetchOrders = async (req, res) => {
         productDiscount: order.product.productId.discount,
         productCategory: order.product.productId.category,
         productInStock: order.product.productId.inStock,
-        // ... অন্যান্য প্রোডাক্ট ফিল্ড ...
-        quantity: order.product.quantity, // অর্ডারের product অবজেক্ট থেকে quantity
-        orderedProductPrice: order.product.price, // অর্ডারের product অবজেক্ট থেকে price (অর্ডার করার সময়ের দাম)
-        orderedProductImage: order.product.image // অর্ডারের product অবজেক্ট থেকে image
+       
+        quantity: order.product.quantity, 
+        orderedProductPrice: order.product.price, 
+        orderedProductImage: order.product.image 
       } : {};
 
-      // addressId থেকে ঠিকানার তথ্য অর্ডারের মূল লেভেলে আনা হচ্ছে
+
       const addressDetails = order.addressId ? {
         addressFullName: order.addressId.fullName,
         addressStreet: order.addressId.street,
@@ -201,7 +228,6 @@ exports.fetchOrders = async (req, res) => {
         addressCountry: order.addressId.country,
       } : {};
 
-      // userId থেকে ইউজারের তথ্য
       const userDetails = order.userId ? {
         userName: order.userId.name,
         userEmail: order.userId.email,
@@ -215,18 +241,18 @@ exports.fetchOrders = async (req, res) => {
         orderCreatedAt: order.createdAt,
         // ... অন্যান্য অর্ডার ফিল্ড ...
 
-        ...userDetails,    // ইউজার ডিটেইলস
-        ...productDetails, // প্রোডাক্ট ডিটেইলস
-        ...addressDetails, // অ্যাড্রেস ডিটেইলস
+        ...userDetails,  
+        ...productDetails, 
+        ...addressDetails,
       };
     });
 
     res.status(200).json({
       error: false,
       message: 'Orders fetched successfully.',
-      data: formattedOrders, // পরিবর্তিত ফরম্যাটের ডেটা পাঠানো হচ্ছে
-      totalPages: totalPages, // মোট কতগুলো পৃষ্ঠা আছে
-      currentPage: page       // বর্তমান পৃষ্ঠা নম্বর
+      data: formattedOrders,
+      totalPages: totalPages,
+      currentPage: page
     });
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -288,6 +314,20 @@ exports.UpdateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
     const updateData = req.body;
+
+    // Auto-calculate discount if price or oldPrice is updated
+    if (updateData.price !== undefined || updateData.oldPrice !== undefined) {
+      const existingProduct = await Product.findById(productId);
+      if (existingProduct) {
+        const price = updateData.price !== undefined ? Number(updateData.price) : existingProduct.price;
+        const oldPrice = updateData.oldPrice !== undefined ? Number(updateData.oldPrice) : (existingProduct.oldPrice || 0);
+        if (oldPrice && oldPrice > price) {
+          updateData.discount = Math.round(((oldPrice - price) / oldPrice) * 100);
+        } else {
+          updateData.discount = 0;
+        }
+      }
+    }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, updateData, { new: true });
 

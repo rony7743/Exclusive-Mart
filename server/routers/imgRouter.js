@@ -13,9 +13,20 @@ const upload = multer({
     cb(null, true);
   },
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
+}).array('images', 10); // Max 10 images
 
-// Route to handle multiple image uploads
-router.post('/image', upload.array('images', 10), uploadImage); // Max 10 images
+// Route to handle multiple image uploads with error handling
+router.post('/image', (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      console.error('Multer error:', err);
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({ error: err.message || 'File upload error' });
+    }
+    next();
+  });
+}, uploadImage);
 
 module.exports = router;

@@ -6,11 +6,11 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: false }, // গুগল লগইনের জন্য false করা হয়েছে
   imgUrl: { type: String, required: false },
-  phone: { type: String, required: false, trim: true },
-  city: { type: String, required: false, trim: true },
-  country: { type: String, required: false, trim: true },
-  gender: { type: String, required: false, trim: true },
-  dateOfBirth: { type: String, required: false, trim: true },
+  phone: { type: String, required: false, default: '' },
+  city: { type: String, required: false, default: '' },
+  country: { type: String, required: false, default: '' },
+  gender: { type: String, required: false, default: '' },
+  dateOfBirth: { type: String, required: false, default: '' },
   role: { 
     type: String, 
     enum: ['user', 'admin'], 
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
 
 // Password hash করার জন্য pre-save middleware
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password') || !this.password) { // যদি পাসওয়ার্ড পরিবর্তন না হয় বা পাসওয়ার্ড না থাকে
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   
@@ -33,11 +33,11 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// --- এই মেথডটি যোগ করুন ---
+
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  if (!this.password) return false; // যদি ইউজারের পাসওয়ার্ড সেট করা না থাকে
+  if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
-// --- এই পর্যন্ত ---
+
 
 module.exports = mongoose.model('User', userSchema);

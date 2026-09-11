@@ -14,7 +14,7 @@ const messageSocket = (io) => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'yourSecretKey');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.user = decoded;
     //  console.log('User authenticated:', socket.user);
       next();
@@ -24,12 +24,11 @@ const messageSocket = (io) => {
     }
   });
 
-  // ✅ On socket connection
+  //  On socket connection
   io.on('connection', (socket) => {
     console.log('New socket connected:', socket.id);
 
-    // ➤ Start chat (by user)
-// ...existing code...
+
 socket.on('start_chat', async ({ productId }) => {
   const userId = socket.user.userId;
   //  console.log('start_chat event received:', { userId, productId });
@@ -74,11 +73,8 @@ socket.on('start_chat', async ({ productId }) => {
     socket.emit('error', 'Could not start chat');
   }
 });
-// ...existing code...
-    // ➤ Load first chat for user (for auto navigation)
-// server-side (socket.on)
-// server-side (socket.on)
-// server-side (socket.on)
+
+
 socket.on('load_first_chat', async () => {
   const userId = socket.user?.userId;
   const role = socket.user?.role;

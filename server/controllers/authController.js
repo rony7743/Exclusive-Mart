@@ -7,7 +7,6 @@ require("dotenv").config();
 const otpStore = {};
 
 exports.sendOTP = async (req, res) => {
-
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
@@ -46,7 +45,6 @@ exports.sendOTP = async (req, res) => {
     res.status(200).json({ success: true, message: "OTP sent" });
   } catch (err) {
     res.status(500).json({ success: false, error: "Failed to send OTP" });
-    console.log(err);
   }
 };
 
@@ -308,7 +306,7 @@ exports.googleLogin = async (req, res) => {
       imgUrl: user.imgUrl , 
       role: user.role 
     
-    }, process.env.JWT_SECRET || "yourSecretKey", {
+    }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
 
@@ -439,6 +437,78 @@ exports.checkTokenValidAndResetLocalStorage = async (req, res) => {
   }
 };
 
+exports.getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select(
+      'name email imgUrl role phone city country gender dateOfBirth _id'
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to load profile', error: error.message });
+  }
+};
+
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const allowedFields = ['name', 'imgUrl', 'phone', 'city', 'country', 'gender', 'dateOfBirth'];
+    const updates = {};
+
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updates[field] = req.body[field] ?? '';
+      }
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    Object.assign(user, updates);
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        name: user.name,
+        userId: user._id,
+        email: user.email,
+        imgUrl: user.imgUrl,
+        role: user.role,
+      },
+      process.env.JWT_SECRET || 'yourSecretKey',
+      { expiresIn: '7d' }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name || '',
+        email: user.email || '',
+        imgUrl: user.imgUrl || '',
+        role: user.role || 'user',
+        phone: user.phone || '',
+        city: user.city || '',
+        country: user.country || '',
+        gender: user.gender || '',
+        dateOfBirth: user.dateOfBirth || '',
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update profile', error: error.message });
+  }
+};
+
 
 // change password
 exports.changePassword = async(req, res) => {
@@ -471,71 +541,3 @@ exports.changePassword = async(req, res) => {
 
   res.status(200).json({ message: 'Password changed successfully' });
 }
-
-exports.getMyProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('-password');
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    res.status(200).json({
-      success: true,
-      user,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-exports.updateMyProfile = async (req, res) => {
-  try {
-    const allowedFields = ['name', 'imgUrl', 'phone', 'city', 'country', 'gender', 'dateOfBirth'];
-    const updates = {};
-
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        updates[field] = typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field];
-      }
-    }
-
-    if (updates.name !== undefined && !updates.name) {
-      return res.status(400).json({ success: false, message: 'Name is required' });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    const token = jwt.sign(
-      {
-        name: user.name,
-        userId: user._id,
-        email: user.email,
-        imgUrl: user.imgUrl,
-        role: user.role
-      },
-      process.env.JWT_SECRET || 'yourSecretKey',
-      { expiresIn: '7d' }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      token,
-      user,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update profile',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};

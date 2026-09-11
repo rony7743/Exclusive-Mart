@@ -52,7 +52,7 @@ const productSchema = new mongoose.Schema({
 
 // Discount auto calculate
 productSchema.pre('save', function (next) {
-  if (this.oldPrice && this.price && this.oldPrice > this.price) {
+  if (this.oldPrice && this.oldPrice > this.price) {
     const discount = ((this.oldPrice - this.price) / this.oldPrice) * 100;
     this.discount = Math.round(discount);
   } else {

@@ -1,5 +1,5 @@
 const Order = require('../model/Order');
-const Product = require('../model/productsModel'); // প্রোডাক্ট মডেল
+const Product = require('../model/productsModel');
 
 exports.createOrder = async (req, res) => {
   try {
@@ -32,6 +32,18 @@ exports.createOrder = async (req, res) => {
     });
 
     await order.save();
+
+    // Emit real-time event for admin
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new_order', {
+        orderId: order._id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        createdAt: order.createdAt,
+      });
+    }
+
     res.status(201).json({ message: 'Order placed successfully', order });
 
   } catch (error) {
@@ -79,6 +91,16 @@ exports.cancelOrder = async (req, res) => {
     }
 
     await Order.findByIdAndUpdate(orderId, { status: 'cancelled' });
+
+    // Emit real-time event for cancellation
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('order_status_updated', {
+        orderId,
+        status: 'cancelled',
+      });
+    }
+
     res.status(200).json({ message: 'Order cancelled successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -111,6 +133,15 @@ exports.updateOrderStatus = async (req, res) => {
 
     order.status = status;
     await order.save();
+
+    // Emit real-time event for status update
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('order_status_updated', {
+        orderId: order._id,
+        status: order.status,
+      });
+    }
 
     res.status(200).json({ message: 'Order status updated successfully', order });
   } catch (error) {

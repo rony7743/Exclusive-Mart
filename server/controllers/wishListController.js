@@ -52,7 +52,6 @@ const getWishLists = async (req, res) => {
       select: 'name price oldPrice discount images'
     });
     if (!wishlist) {
-      // যদি না থাকে, ফাঁকা wishlist পাঠান
       return res.status(200).json({ products: [] });
     }
     res.status(200).json(wishlist);

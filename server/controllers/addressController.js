@@ -18,9 +18,7 @@ export const createAddress = async (req, res) => {
 
 export const getAddresses = async (req, res) => {
   try {
-    //const { userId } = req.query;
-    const userId = req.user._id; // Assuming user ID is stored in req.user after authentication
-    console.log('User ID:', userId);
+    const userId = req.user._id;
     if (userId) {
       const addresses = await Address.find({ userId });
       return res.status(200).json(addresses);

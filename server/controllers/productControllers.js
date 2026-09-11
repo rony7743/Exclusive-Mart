@@ -14,7 +14,7 @@ const createProduct = async (req, res) => {
 
 const getAllProducts = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10; // ডিফল্ট 10
+    const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
 
     const products = await Product.find()
