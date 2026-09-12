@@ -47,13 +47,12 @@ socket.on('start_chat', async ({ productId }) => {
         lastMessageTime: new Date(),
       });
       await conversation.save();
-      // নতুন conversation হলে populate করতে হবে
       conversation = await Conversation.findOne({ chatId })
         .populate('createdBy', 'name email imgUrl role')
         .lean();
     }
 
-    // এখানে load_first_chat-এর মতো payload বানান
+
     const payload = {
       id: conversation.chatId || conversation._id.toString(),
       name: conversation.name || 'Unnamed Chat',

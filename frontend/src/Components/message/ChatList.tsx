@@ -35,7 +35,7 @@ const ChatList: React.FC = () => {
 
   // Fetch conversations using React Query
   const fetchConversations = (): Promise<Conversation[]> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => { 
       socket.emit('load_conversations');
       
       const handleLoaded = (convs: Conversation[]) => resolve(convs);
