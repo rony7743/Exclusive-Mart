@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import type { Products as Product } from '../types';
 import axios from 'axios';
+import { optimizeImages } from '../../utils/imageOptimizer';
 
 interface FormDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export default function FormDialog({
   const [newImages, setNewImages] = React.useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = React.useState<string[]>([]);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -48,28 +50,42 @@ export default function FormDialog({
       setNewImagePreviews([]);
       setErrorMessage(null);
       setIsUploading(false);
+      setIsOptimizing(false);
     }
   }, [product]);
 
   if (!editedProduct) return null;
 
-  const isBusy = isSubmitting || isUploading;
+  const isBusy = isSubmitting || isUploading || isOptimizing;
 
   // Handle new image selection
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const validFiles = Array.from(files).filter(
-        file => file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
+        file => file.type.startsWith('image/')
       );
-      if (validFiles.length !== files.length) {
-        alert('Only image files less than 5MB are allowed.');
-      }
       if (validFiles.length > 0) {
-        setNewImages(prev => [...prev, ...validFiles]);
-        const newPreviews = validFiles.map(file => URL.createObjectURL(file));
-        setNewImagePreviews(prev => [...prev, ...newPreviews]);
-        setErrorMessage(null);
+        setIsOptimizing(true);
+        try {
+          const optimized = await optimizeImages(validFiles, {
+            maxWidth: 1200,
+            maxHeight: 1200,
+            quality: 0.82,
+            format: 'image/webp'
+          });
+          setNewImages(prev => [...prev, ...optimized]);
+          const newPreviews = optimized.map(file => URL.createObjectURL(file));
+          setNewImagePreviews(prev => [...prev, ...newPreviews]);
+          setErrorMessage(null);
+        } catch (err) {
+          console.error("Image optimization failed, fallback:", err);
+          setNewImages(prev => [...prev, ...validFiles]);
+          const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+          setNewImagePreviews(prev => [...prev, ...newPreviews]);
+        } finally {
+          setIsOptimizing(false);
+        }
       }
     }
     // reset input so the same file can be selected again if needed
@@ -397,7 +413,7 @@ export default function FormDialog({
           startIcon={isBusy ? <CircularProgress size={18} color="inherit" /> : null}
           sx={{ minWidth: 120 }}
         >
-          {isBusy ? (isUploading ? 'Uploading...' : 'Saving...') : 'Save Changes'}
+          {isBusy ? (isOptimizing ? 'Optimizing...' : isUploading ? 'Uploading...' : 'Saving...') : 'Save Changes'}
         </Button>
       </DialogActions>
     </Dialog>

@@ -68,16 +68,6 @@ A modern, fully responsive e-commerce platform built with cutting-edge technolog
 
 
 
-## 🚦 Getting Started
-
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- MongoDB instance
-- Azure Storage Account
-
-
-
 ## 🔐 Admin Access
 
 To access admin panel:
@@ -144,15 +134,7 @@ To access admin panel:
 
 
 
-## 📞 Contact
-
-- **Developer:** [Mahfuj Alam Rony]
-- **Email:** [mahfujalamrony07@gmail.com]
-<!-- - **LinkedIn:** [Your LinkedIn Profile]
-- **GitHub:** [Your GitHub Profile]
-- **Portfolio:** [Your Portfolio Website] -->
-
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - React Team for the amazing framework
 - MongoDB for the flexible database solution
@@ -162,11 +144,9 @@ To access admin panel:
 
 ---
 
-### 🎉 Thank you for checking out this E-Commerce Shop project!
+### Thank you for checking out this Exclusive Mart
 
 **Note:** This application is production-ready except for payment integration, which can be easily added based on requirements.
 
-**Admin Access Code:** `LIB8jz98YQRt128W` (Remember to change this in production)
+**Admin Access Code:** `LIB8jz98YQRt128W`
 
-***Bakcend url: https://github.com/mahfujalarony/project-backend-for-azare
-**Made with ❤️ for the community**

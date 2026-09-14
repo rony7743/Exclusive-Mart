@@ -2,20 +2,21 @@ import { useAuth } from "../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useState, useRef } from "react";
+import { optimizeImage } from "../../utils/imageOptimizer";
 
 const Step2: React.FC = () => {
   const { setAuthData } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -27,18 +28,31 @@ const Step2: React.FC = () => {
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be less than 5MB");
-      return;
-    }
-
     setError(null);
-    setSelectedFile(file);
+    setIsOptimizing(true);
 
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      const optimized = await optimizeImage(file, {
+        maxWidth: 500,
+        maxHeight: 500,
+        quality: 0.85,
+        format: 'image/webp'
+      });
+      setSelectedFile(optimized);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(optimized);
+    } catch (err) {
+      console.error("Avatar optimization failed:", err);
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
   const handleUpload = async () => {
@@ -152,14 +166,14 @@ const Step2: React.FC = () => {
           </button>
           <button
             onClick={handleUpload}
-            disabled={isUploading}
+            disabled={isUploading || isOptimizing}
             className={`px-6 py-2 rounded-lg text-white ${
-              isUploading
+              isUploading || isOptimizing
                 ? "bg-blue-300 cursor-not-allowed"
                 : "bg-blue-500 hover:bg-blue-600"
             }`}
           >
-            {isUploading ? "Uploading..." : "Next"}
+            {isUploading ? "Uploading..." : isOptimizing ? "Optimizing..." : "Next"}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { optimizeImages } from '../../utils/imageOptimizer';
 import '../ui/InsertFormCss.css'; // We'll create a separate CSS file
 
 // Define form data interface
@@ -14,7 +15,7 @@ interface FormData {
   inStock: boolean;
   brand?: string;
   weight?: number;
-  tags: string[]; // নতুন field
+  tags: string[];
 }
 
 // Success Popup Component with Animation
@@ -94,6 +95,7 @@ const InsertOne: React.FC = () => {
 
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [submittedProductName, setSubmittedProductName] = useState('');
@@ -217,8 +219,7 @@ const InsertOne: React.FC = () => {
   };
 
   // Handle file processing
-  const handleFiles = (files: FileList) => {
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+  const handleFiles = async (files: FileList) => {
     const MAX_FILES = 8;
     
     if (formData.images.length + files.length > MAX_FILES) {
@@ -232,8 +233,6 @@ const InsertOne: React.FC = () => {
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith('image/')) {
         invalidFiles.push(`${file.name} - Only image files allowed`);
-      } else if (file.size > MAX_SIZE) {
-        invalidFiles.push(`${file.name} - File size exceeds 5MB`);
       } else {
         validFiles.push(file);
       }
@@ -244,16 +243,37 @@ const InsertOne: React.FC = () => {
     }
 
     if (validFiles.length > 0) {
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...validFiles],
-      }));
-      
-      const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
-      setImagePreviews((prev) => [...prev, ...newPreviews]);
-      
-      if (invalidFiles.length === 0) {
-        setError(null);
+      setIsOptimizing(true);
+      try {
+        const optimizedFiles = await optimizeImages(validFiles, {
+          maxWidth: 1200,
+          maxHeight: 1200,
+          quality: 0.82,
+          format: 'image/webp'
+        });
+
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...optimizedFiles],
+        }));
+        
+        const newPreviews = optimizedFiles.map((file) => URL.createObjectURL(file));
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
+        
+        if (invalidFiles.length === 0) {
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Image optimization failed, fallback to original:', err);
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...validFiles],
+        }));
+        
+        const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
+      } finally {
+        setIsOptimizing(false);
       }
     }
   };
@@ -767,10 +787,21 @@ const InsertOne: React.FC = () => {
                       </div>
                       <p className="text-xl font-bold text-gray-700 mb-2">Upload Images</p>
                       <p className="text-gray-500 mb-2">Click or drag and drop here</p>
-                      <p className="text-sm text-blue-600 font-medium">JPG, PNG, GIF - Max 5MB each</p>
+                      <p className="text-sm text-blue-600 font-medium">Auto-compressed to high-speed WebP - Max 8 images</p>
                     </div>
                   </label>
                 </div>
+
+                {/* Optimizing State Indicator */}
+                {isOptimizing && (
+                  <div className="mt-4 flex items-center justify-center space-x-2 text-blue-600 font-medium py-2 px-4 bg-blue-50 rounded-xl">
+                    <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Optimizing image resolution & compressing to WebP for best performance...</span>
+                  </div>
+                )}
                 
                 {/* Image Previews */}
                 {imagePreviews.length > 0 && (
@@ -815,7 +846,7 @@ const InsertOne: React.FC = () => {
               <button
                 type="submit"
                 className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 hover:from-blue-700 hover:via-purple-700 hover:to-blue-900 disabled:from-gray-400 disabled:via-gray-500 disabled:to-gray-400 text-white font-bold py-5 px-8 rounded-2xl transition-all duration-300 flex items-center justify-center transform hover:scale-[1.02] disabled:transform-none shadow-xl text-lg"
-                disabled={isLoading}
+                disabled={isLoading || isOptimizing}
               >
                 {isLoading ? (
                   <>
@@ -825,6 +856,8 @@ const InsertOne: React.FC = () => {
                     </svg>
                     <span className="animate-pulse">Uploading...</span>
                   </>
+                ) : isOptimizing ? (
+                  <span>Optimizing Images...</span>
                 ) : (
                   <>
                     <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -128,44 +128,55 @@ exports.fetchUsers = async (req, res) => {
 
 
 exports.fetchAllProducts = async (req, res) => {
-  try{
+  try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+
+    const filter = {};
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { name: regex },
+        { category: regex },
+        { description: regex },
+        { brand: regex }
+      ];
+    }
 
     const skip = (page - 1) * limit;
 
-    const totalProducts = await Product.countDocuments();
+    const totalProducts = await Product.countDocuments(filter);
     const totalPages = Math.ceil(totalProducts / limit);
 
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name price oldPrice description images discount category inStock createdAt brand');
 
-const products = await Product.find()
-  .sort({ createdAt: -1 })
-  .skip(skip)
-  .limit(limit)
-  .select('name price oldPrice description images discount category inStock createdAt');
+    const reviews = await Review.find({ productId: { $in: products.map(p => p._id) } })
+      .select('userId productId rating review likes createdAt')
+      .populate('userId', 'name email imgUrl');
 
-const reviews = await Review.find({ productId: { $in: products.map(p => p._id) } })
-  .select('userId productId rating review likes createdAt')
-  .populate('userId', 'name email imgUrl');
+    const productsWithReviews = products.map(product => {
+      const productReviews = reviews.filter(r => r.productId && r.productId.toString() === product._id.toString());
+      return {
+        ...product.toObject(),
+        reviews: productReviews
+      };
+    });
 
-const productsWithReviews = products.map(product => {
-  const productReviews = reviews.filter(r => r.productId.toString() === product._id.toString());
-  return {
-    ...product.toObject(),
-    reviews: productReviews
-  };
-});
-
-res.status(200).json({
-  error: false,
-  message: 'Products fetched successfully.',
-  data: {
-    products: productsWithReviews,
-    totalPages,
-    totalProducts,
-    currentPage: page
-  }
-});
+    res.status(200).json({
+      error: false,
+      message: 'Products fetched successfully.',
+      data: {
+        products: productsWithReviews,
+        totalPages,
+        totalProducts,
+        currentPage: page
+      }
+    });
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({

@@ -61,7 +61,7 @@ const BestSellingComponent: React.FC = () => {
   } = useInfiniteQuery({
     queryKey: ['bestSellingHorizontal'],
     queryFn: async ({ pageParam = 0 }: { pageParam?: number }) => {
-      const response = await axios.get(`${API_URL}?limit=8&offset=${pageParam}`);
+      const response = await axios.get(`${API_URL}?limit=8&offset=${pageParam}&sort=best_selling`);
       return response.data as Product[];
     },
     initialPageParam: 0,

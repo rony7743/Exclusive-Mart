@@ -26,7 +26,7 @@ interface Product {
 }
 
 const fetchProducts = async ({ pageParam = 0 }) => {
-  const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${pageParam}`);
+  const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${pageParam}&sort=flash_sale`);
   return response.data;
 };
 
@@ -86,7 +86,7 @@ const ProductList: React.FC = () => {
   const { data: horizontalProducts = [], isLoading: horizontalLoading } = useQuery<Product[]>({
     queryKey: ['horizontalProducts'],
     queryFn: async () => {
-      const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=8&offset=0`);
+      const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=8&offset=0&sort=flash_sale`);
       return response.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -220,7 +220,7 @@ const ProductList: React.FC = () => {
   const loadMoreHorizontal = async () => {
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${horizontalProducts.length}`
+        `${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${horizontalProducts.length}&sort=flash_sale`
       );
       const newProducts = response.data;
 

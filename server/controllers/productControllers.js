@@ -16,8 +16,30 @@ const getAllProducts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
+    const sort = req.query.sort || 'newest';
+    const category = req.query.category;
 
-    const products = await Product.find()
+    const query = {};
+    if (category) {
+      query.category = category;
+    }
+
+    let sortOption = { createdAt: -1 };
+    if (sort === 'flash_sale' || sort === 'discount') {
+      // Flash sale: Highest discount first, then newest
+      sortOption = { discount: -1, createdAt: -1 };
+    } else if (sort === 'best_selling') {
+      // Best selling: prioritize in-stock and higher value/demand
+      sortOption = { inStock: -1, price: -1, createdAt: -1 };
+    } else if (sort === 'oldest') {
+      sortOption = { createdAt: 1 };
+    } else {
+      // 'newest', 'latest' or default
+      sortOption = { createdAt: -1 };
+    }
+
+    const products = await Product.find(query)
+      .sort(sortOption)
       .skip(offset)
       .limit(limit);
 

@@ -20,7 +20,7 @@ type Product = {
 };
 
 const fetchProducts = async ({ pageParam = 0 }) => {
-  const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${pageParam}`);
+  const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/products?limit=20&offset=${pageParam}&sort=newest`);
   return response.data;
 };
 

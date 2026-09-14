@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from '../ui/LoadingSpinner'; 
@@ -30,7 +30,9 @@ import {
   useMediaQuery,
   Badge,
   Alert,
-  Snackbar
+  Snackbar,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 
 import {
@@ -39,7 +41,9 @@ import {
   Delete as DeleteIcon,
   Star as StarIcon,
   ShoppingCart as ShoppingCartIcon,
-  RateReview as ReviewIcon
+  RateReview as ReviewIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import ConfirmationDialog from '../ui/Confirm';
 import FormDialog from '../ui/ProductEditDilogBox';
@@ -53,9 +57,9 @@ interface ProductsApiResponse {
 }
 
 // API functions
-const fetchProducts = async (page: number, limit: number): Promise<ProductsApiResponse> => {
+const fetchProducts = async (page: number, limit: number, search: string = ''): Promise<ProductsApiResponse> => {
   const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/fetchProducts`, {
-    params: { page, limit },
+    params: { page, limit, search: search.trim() },
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('token')}`
     }
@@ -97,6 +101,17 @@ const ManageProducts: React.FC = () => {
   
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -127,13 +142,12 @@ const ManageProducts: React.FC = () => {
     error,
     isError,
     refetch
-  } = // ...existing code...
-useQuery<ProductsApiResponse, Error>({
-  queryKey: ['products', page, rowsPerPage],
-  queryFn: () => fetchProducts(page, rowsPerPage),
-  staleTime: 5 * 60 * 1000,
-  gcTime: 10 * 60 * 1000,
-});
+  } = useQuery<ProductsApiResponse, Error>({
+    queryKey: ['products', page, rowsPerPage, searchQuery],
+    queryFn: () => fetchProducts(page, rowsPerPage, searchQuery),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
 
   // Update Product Mutation with Instant Cache Update & Background Sync
@@ -384,23 +398,6 @@ useQuery<ProductsApiResponse, Error>({
   const products = productsData?.products || [];
   const totalPages = productsData?.totalPages || 0;
 
-  // Empty state
-  if (products.length === 0 && !isLoading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <ShoppingCartIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h5" gutterBottom>
-            No products found
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Start by adding some products to your inventory
-          </Typography>
-        </Paper>
-      </Container>
-    );
-  }
-
   return (
     <Box sx={{ width: '100%', py: { xs: 1, sm: 2 }, px: { xs: 0.5, sm: 1 } }}>
       {/* Header */}
@@ -414,17 +411,40 @@ useQuery<ProductsApiResponse, Error>({
           Manage Products
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Total: {productsData?.totalProducts || products.length} products
+          Total: {productsData?.totalProducts ?? products.length} products
+          {searchQuery && ` (filtered for "${searchQuery}")`}
         </Typography>
       </Box>
 
       {/* Controls */}
       <Stack 
-        direction={{ xs: 'column', sm: 'row' }} 
+        direction={{ xs: 'column', md: 'row' }} 
         spacing={2} 
         sx={{ mb: 3 }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
+        alignItems={{ xs: 'stretch', md: 'center' }}
       >
+        <TextField
+          size="small"
+          placeholder="Search products by name, category, brand..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ minWidth: { xs: '100%', sm: 280, md: 360 }, flex: { md: 1 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: searchInput ? (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearchInput('')} edge="end" aria-label="Clear search">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
+        />
+
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Products per page</InputLabel>
           <Select
@@ -439,8 +459,6 @@ useQuery<ProductsApiResponse, Error>({
           </Select>
         </FormControl>
         
-        <Box sx={{ flex: 1 }} />
-        
         <Button 
           variant="outlined" 
           onClick={() => refetch()}
@@ -449,6 +467,24 @@ useQuery<ProductsApiResponse, Error>({
           Refresh
         </Button>
       </Stack>
+
+      {/* Empty State */}
+      {products.length === 0 && !isLoading && (
+        <Paper sx={{ p: 5, textAlign: 'center', my: 4, borderRadius: 2 }}>
+          <ShoppingCartIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" gutterBottom>
+            {searchQuery ? `No products found matching "${searchQuery}"` : "No products found"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {searchQuery ? "Try searching for another keyword, brand, or category" : "Start by adding some products to your inventory"}
+          </Typography>
+          {searchQuery && (
+            <Button variant="outlined" size="small" onClick={() => setSearchInput('')}>
+              Clear Search
+            </Button>
+          )}
+        </Paper>
+      )}
 
       {/* Products Grid */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
